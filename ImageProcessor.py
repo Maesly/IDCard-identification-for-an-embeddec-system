@@ -360,9 +360,10 @@ class ImageProcessor:
         Returns:
             np.ndarray: output image.
         """
-
-        return cv2.adaptiveThreshold(filePath, 255, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY_INV, 13, 5)
-
+        kernel = np.array([[-1, -1, -1],
+                            [-1, 9,-1],
+                            [-1, -1, -1]])
+        return cv2.filter2D(src=filePath, ddepth=-1, kernel=kernel) 
 
     def orderPoints(self, puntos, angle):
         """ This function takes a list of points and reorder the points 
