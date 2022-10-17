@@ -4,9 +4,8 @@ import os
 import time
 import cv2
 
-capImage = ImageCapture()
-
 # Capture Image  
+capImage = ImageCapture()
 capImage.captureImage() 
 
 def getFilepaths(directory: str) -> list:
@@ -35,8 +34,8 @@ for fileName in filePaths:
     start_time = time.time()
     
     recognizer.preprocesImage(filePath=fileName)
-
-    # Applies the algorithm to the current image
+    
+    # Applies the algorithm to the current   image
     recognizer.verifyIdCardAuthenticity(filePath=fileName, verbose=verbose)
     # Calculates the execution time
     execution_time = time.time() - start_time

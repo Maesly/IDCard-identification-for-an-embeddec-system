@@ -8,6 +8,7 @@ import re
 import matplotlib.pyplot as plt
 import random as rng
 from PIL import Image
+import pytesseract
 
 class CRIdentityCardRecognizer(Recognizer):
 
@@ -47,9 +48,24 @@ class CRIdentityCardRecognizer(Recognizer):
         self.sqKernel7 = cv2.getStructuringElement(shape=cv2.MORPH_RECT,
                                                    ksize=(7, 7))
 
+    def validateDocumentType(self, img: np.array):
+        img = self.imgProcessor.im2grayscale(img)
+        docValidate = False 
+        doc = self.getDocumentType(img=img)
+        #print(doc)
+        docType = re.findall("Conducir",doc)
+        #docType = re.findall("Conducir",doc)
+        if(docType != []):
+            print(docType)
+            print("Driver's license detected")
+            return docValidate
+        else:
+            print("ID Card detected")
+            docValidate = True
+            return docValidate
+
     def preprocesImage(self, filePath: str):
-        '''
-        Function that apply all the process to enhance the image
+        ''' Function that apply all the process to enhance the image
         Args: 
             filePath (str): image file path. 
         '''
@@ -61,32 +77,30 @@ class CRIdentityCardRecognizer(Recognizer):
         
         # Apply gray scale
         gray = self.imgProcessor.im2grayscale(foto)   
-        cv2.imwrite('gray.jpg', gray)
-        # Apply ecualization
-        #ecua = self.imgProcessor.histogram(gray)
-        #cv2.imwrite('ecua.jpg', ecua)
+        
         # Apply threshold
         threshold = self.imgProcessor.apply_adaptive_threshold(filePath=gray)
-        cv2.imwrite('threshold.jpg', threshold)
+        
         canny = self.imgProcessor.canny(threshold)
-        cv2.imwrite('canny.jpg', canny)
+
         #find contours        
         contours = self.imgProcessor.countoursImage(threshold)
-        draw = self.imgProcessor.drawContours(gray, contours)
-        cv2.imwrite('draw.jpg', draw)
+
         # Cutting the edges of the image
         cut = self.imgProcessor.cutImage(copia, contours=contours)
         
         # Sharpen the image
         
         sharp = self.imgProcessor.sharpenImagen(cut)
-    
+        
         # Save the image
         cv2.imwrite(filePath, sharp)
 
+        self.validateDocumentType(sharp)
+        
         return
 
-    #def validateIDCard(self, filePath: str):
+
 
     def verifyIdCardAuthenticity(self, filePath: str, verbose: bool = False) -> bool:
         """ This function takes an input image of an identification card and verifies
@@ -104,7 +118,6 @@ class CRIdentityCardRecognizer(Recognizer):
         imgResized = self.imgProcessor.imResize(img=img,
                                                 width=self.resizedSize)
 
-
         # Converts the color image into a grayscale image
         gray = self.imgProcessor.im2grayscale(img=imgResized)
         # Segments the image
@@ -115,25 +128,27 @@ class CRIdentityCardRecognizer(Recognizer):
         contours = self.imgProcessor.findContours(img=imgSegmented)
         # Gets the segment corresponding to the identification number
         id, idSegment = self.getId(img=gray, contours=contours)
-        
-        doc, docSegment = self.getDocumentType(img=gray, contours=contours)
-        #print(idSegment)
+
+        #self.validateDocumentType(img=gray)
         # Gets the segment corresponding to the full name
         fullName, fullNameSegment = self.getFullName(img=gray,
                                                      contours=contours)
         # Determines if the information is authentic
-        isAuthentic = self.database.isAuthentic(numId=id.replace(" ", ""),
-                                                nameId=fullName)
-        # If verbose is activated shows some process information
-        if (verbose):
-            # Shows the prediction information
-            self.showInformation(id=id,
-                                 fullName=fullName,
-                                 authentic=isAuthentic)
-            # Shows the image with its target segments
-            cv2.imshow("Image", self.drawSegments(img=gray,
-                                                  segments=[idSegment, fullNameSegment]))
-
+        if(id != None):
+            isAuthentic = self.database.isAuthentic(numId=id.replace(" ", ""),
+                                                    nameId=fullName)
+            # If verbose is activated shows some process information
+            if (verbose):
+                # Shows the prediction information
+                self.showInformation(id=id,
+                                    fullName=fullName,
+                                    authentic=isAuthentic)
+                # Shows the image with its target segments
+                cv2.imshow("Image", self.drawSegments(img=gray,
+                                                    segments=[idSegment, fullNameSegment]))
+        else:
+            print("Image text cannot be read, please try again...")
+            isAuthentic = False
         return isAuthentic
 
     def drawSegments(self, img: np.ndarray, segments: list) -> np.ndarray:
@@ -233,26 +248,24 @@ class CRIdentityCardRecognizer(Recognizer):
 
         return None
     
-    def getDocumentType(self, img: np.ndarray, contours: list):
+    def getDocumentType(self, img: np.ndarray):
         
-        #crop = img[15:65,40:300]
-        #cv2.imwrite('test.jpg',crop)
+        crop = img[0:65,0:300]
+        cv2.imwrite('test.jpg',crop)
         
-        doc = None
-        # Gets the coordinates of the id number segment
-        docSegment = self.getSegment(contours=contours, limits=[40, 300, 15, 65])
-        # If the segment is not None
-        if (docSegment):
-            # Extracts the id number segment from the input image
-            docImg = self.extractROI(img=img, segment=docSegment, zoom=True)
-            # Makes the preprocessing of the image
-            docdImg = self.im2bin(img=docImg)
-            # Applies the OCR algorithm
-            doc = self.optRecognizer.im2text(img=docImg)
-            # Cleans up the text detected
-            doc = re.sub('[^0-9]', '', doc)
+        size = self.imgProcessor.imResize(img=img,width=self.resizedSize)
+        cv2.imwrite('test2.jpg',size)
 
-        return doc, docSegment         
+        #res = self.imgProcessor.sharpenImagen(size)
+        #cv2.imwrite('test3.jpg',res)
+        #threshold = cv2.adaptiveThreshold(size, 255, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY_INV, 55, 25)
+        #cv2.imwrite('test3.jpg',threshold)
+        docImg = self.im2bin(img=size)
+        cv2.imwrite('test4.jpg',docImg)
+        config = "--psm 1"
+        txt = pytesseract.image_to_string(docImg, config= config)
+        
+        return txt
 
     def getId(self, img: np.ndarray, contours: list) -> tuple:
         """ This function takes a pre-processed input image of an identification
@@ -270,14 +283,18 @@ class CRIdentityCardRecognizer(Recognizer):
         idSegment = self.getSegment(contours=contours,
                                     limits=[self.idNumberX1, self.idNumberX2,
                                             self.idNumberY1, self.idNumberY2])
+        
         # If the segment is not None
         if (idSegment):
             # Extracts the id number segment from the input image
             idImg = self.extractROI(img=img, segment=idSegment, zoom=True)
+            
             # Makes the preprocessing of the image
             idImg = self.im2bin(img=idImg)
+            
             # Applies the OCR algorithm
             id = self.optRecognizer.im2text(img=idImg)
+            
             # Cleans up the text detected
             id = re.sub('[^0-9]', '', id)
 

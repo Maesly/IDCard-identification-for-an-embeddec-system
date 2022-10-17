@@ -318,7 +318,7 @@ class ImageProcessor:
         Returns:
             np.ndarray: output image.
         """
-        return cv2.adaptiveThreshold(filePath, 255, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY_INV, 13, 5)
+        return cv2.adaptiveThreshold(filePath, 255, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY_INV, 13, 25)
 
     def canny(self, filePath: np.ndarray):
         """ This function takes an image and detect all the edges
