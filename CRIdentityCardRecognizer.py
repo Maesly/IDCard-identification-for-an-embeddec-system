@@ -96,7 +96,7 @@ class CRIdentityCardRecognizer(Recognizer):
         # Save the image
         cv2.imwrite(filePath, sharp)
 
-        self.validateDocumentType(sharp)
+        #self.validateDocumentType(sharp)
         
         return
 
